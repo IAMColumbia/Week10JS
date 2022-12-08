@@ -1,36 +1,34 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 import * as CANNON from "cannon-es"
-import { DstColorFactor } from "three";
+import { DstColorFactor, Vector3 } from "three";
 import { Vec3 } from "cannon-es";
 
 var width = window.innerWidth - 20;
 var height = window.innerHeight - 50;
 
 const scene = new THREE.Scene();
-const world = new CANNON.World({gravity: new CANNON.Vec3(0, -10, 0)});
+const world = new CANNON.World({gravity: new CANNON.Vec3(0, 0, 0)});
 const camera = new THREE.PerspectiveCamera(50, width / height, .1, 1000);
 
-camera.position.z = 10;
-camera.position.y = 5;
+camera.position.z = 75;
+camera.position.y = 30;
 camera.position.x = 0;
 camera.updateProjectionMatrix();
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setClearColor("#89cfe8");
+renderer.setClearColor("#070808");
 renderer.setSize(width, height);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
 document.body.appendChild(renderer.domElement);
 
 const orbit = new OrbitControls(camera, renderer.domElement);
 
-const axesHelpers = new THREE.AxesHelper();
-scene.add(axesHelpers);
+const gridhelper = new THREE.GridHelper();
+scene.add(gridhelper);
 
-const directionalLight = new THREE.DirectionalLight({color: 0x00000, intensity: 0.6})
-directionalLight.castShadow = true;
-directionalLight.position.set( 0, 20, 0 );
+const ambientLight = new THREE.AmbientLight("#fafcd7", 0.2);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight("#fafcd7", 0.2);
 scene.add(directionalLight);
 
 const mousePos = new THREE.Vector2();
@@ -38,15 +36,8 @@ const intersectPt = new THREE.Vector3();
 const planeNormal = new THREE.Vector3();
 const plane = new THREE.Plane();
 const raycaster = new THREE.Raycaster();
-const spheres = [];
-const bodies = [];
-var doSphere = true;
-
-const planeGeo = new THREE.PlaneGeometry(10, 10);
-const planeMat = new THREE.MeshStandardMaterial({color: 0x63d681, side:THREE.DoubleSide});
-const ground = new THREE.Mesh(planeGeo, planeMat);
-ground.receiveShadow = true;
-scene.add(ground);
+const sphereMeshes = [];
+const sphereBodies = [];
 
 const planePMat = new CANNON.Material();
 const planeBody = new CANNON.Body(
@@ -58,22 +49,34 @@ const planeBody = new CANNON.Body(
 planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 world.addBody(planeBody);
 
-CreateBox(new Vec3(5, 1.25, 0), new Vec3(1, 2.5, 10));
-CreateBox(new Vec3(-5, 1.25, 0), new Vec3(1, 2.5, 10));
-CreateBox(new Vec3(0, 1.25, 5), new Vec3(10, 2.5, 1));
-CreateBox(new Vec3(0, 1.25, -5), new Vec3(10, 2.5, 1));
+CreatePlanet(new Vec3(0,0,0), 8);
+CreatePlanet(new Vec3(10,0,0), 1);
+CreatePlanet(new Vec3(10,10,0), 1);
+CreatePlanet(new Vec3(10,0,10), 1);
+CreatePlanet(new Vec3(10,0,-2), 1);
 
 timeStep = 1/60;
 function animate()
 {
     world.step(timeStep);
-    ground.position.copy(planeBody.position);
-    ground.quaternion.copy(planeBody.quaternion);
 
-    for(let i = 0; i < bodies.length; i++)
+    for(let i = 0; i < sphereBodies.length; i++)
     {
-        spheres[i].position.copy(bodies[i].position);
-        spheres[i].quaternion.copy(bodies[i].quaternion);
+        sphereMeshes[i].position.copy(sphereBodies[i].position);
+        sphereMeshes[i].quaternion.copy(sphereBodies[i].quaternion);
+        for(let x = 0; x < sphereBodies.length; x++)
+        {
+            if(x != i)
+            {
+                var force = (sphereBodies[i].mass * sphereBodies[x].mass) / (sphereMeshes[i].position.distanceTo(sphereMeshes[x].position)); //Newton's law of universal gravitation
+                var forceVec = new Vec3(sphereBodies[i].position.x - sphereBodies[x].position.x, sphereBodies[i].position.y - sphereBodies[x].position.y, sphereBodies[i].position.z - sphereBodies[x].position.z);
+                forceVec.normalize();
+                forceVec.x *= -force; forceVec.y *= -force; forceVec.z *= -force;
+
+                //console.log(forceVec);
+                sphereBodies[i].applyForce(forceVec);
+            }
+        }
     }
 
     renderer.render(scene, camera);
@@ -83,67 +86,30 @@ renderer.setAnimationLoop(animate);
 
 window.addEventListener("click", function(e)
 {
-    var objGeo;
-    var objMat;
-    var obj;
-    const objPMat = new CANNON.Material();
-    var objBody;
-
-    if (doSphere) {
-        objGeo = new THREE.SphereGeometry(.25, 30, 30);
-        objMat = new THREE.MeshStandardMaterial({color: 0xFFFFFF * Math.random()});
-        obj = new THREE.Mesh(objGeo, objMat);
-        objBody = new CANNON.Body(
-            {
-                material: objPMat,
-                shape: new CANNON.Sphere(.125),
-                mass: 3,
-                position: new CANNON.Vec3(intersectPt.x, intersectPt.y, intersectPt.z)
-            });
-    }
-    else
-    {
-        objGeo = new THREE.BoxGeometry(.5, .5, .5);
-        objMat = new THREE.MeshStandardMaterial({color: 0xFFFFFF * Math.random()});
-        obj = new THREE.Mesh(objGeo, objMat);
-        objBody = new CANNON.Body(
-            {
-                material: objPMat,
-                shape: new CANNON.Box(new CANNON.Vec3(.25, .25, .25)),
-                mass: 3,
-                position: new CANNON.Vec3(intersectPt.x, intersectPt.y, intersectPt.z)
-            });
-    }
-
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-
-    doSphere = !doSphere;
-
-    scene.add(obj);
-    obj.position.copy(intersectPt);
-    world.addBody(objBody);
-
-    const planeSphereContact = new CANNON.ContactMaterial(planePMat, objPMat, { restitution: 0.9 });
-    world.addContactMaterial(planeSphereContact);
-
-    spheres.push(obj);
-    bodies.push(objBody);
+    
 });
 
-function CreateBox(pos, size)
+function CreatePlanet(pos, radius)
 {
-    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
-    const boxMat = new THREE.MeshStandardMaterial({color: 0xffffff * Math.random()});
-    const box = new THREE.Mesh(boxGeo, boxMat);
-    box.position.set(pos.x, pos.y, pos.z);
+    const sphereGeo = new THREE.SphereGeometry(radius);
+    const sphereMat = new THREE.MeshStandardMaterial({color: 0xffffff * Math.random()});
+    const planet = new THREE.Mesh(sphereGeo, sphereMat);
+    planet.position.set(pos.x, pos.y, pos.z);
     const body = new CANNON.Body(
-    {    type: CANNON.Body.STATIC,
-        shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)),
+    {   
+        type: CANNON.Body.DYNAMIC,
+        shape: new CANNON.Sphere(radius) / 2,
+        mass: radius * radius,
         position: new CANNON.Vec3(pos.x, pos.y, pos.z)
     });
-    scene.add(box);
+    
+    scene.add(planet);
     world.addBody(body);
+
+    body.applyImpulse(new Vec3(Math.random() * 8, Math.random() * 8, Math.random() * 8));
+
+    sphereMeshes.push(planet);
+    sphereBodies.push(body);
 }
 
 window.addEventListener("mousemove", function(e)

@@ -142,14 +142,14 @@
       this[globalName] = mainExports;
     }
   }
-})({"fK4lP":[function(require,module,exports) {
+})({"kQAxj":[function(require,module,exports) {
+"use strict";
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "d6ea1d42532a7575";
 module.bundle.HMR_BUNDLE_ID = "207a8fdfe82f28a0";
-"use strict";
 /* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */ /*::
 import type {
   HMRAsset,
@@ -539,47 +539,33 @@ var width = window.innerWidth - 20;
 var height = window.innerHeight - 50;
 const scene = new _three.Scene();
 const world = new _cannonEs.World({
-    gravity: new _cannonEs.Vec3(0, -10, 0)
+    gravity: new _cannonEs.Vec3(0, 0, 0)
 });
 const camera = new _three.PerspectiveCamera(50, width / height, .1, 1000);
-camera.position.z = 10;
-camera.position.y = 5;
+camera.position.z = 75;
+camera.position.y = 30;
 camera.position.x = 0;
 camera.updateProjectionMatrix();
 const renderer = new _three.WebGLRenderer({
     antialias: true
 });
-renderer.setClearColor("#89cfe8");
+renderer.setClearColor("#070808");
 renderer.setSize(width, height);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = _three.PCFSoftShadowMap; // default THREE.PCFShadowMap
 document.body.appendChild(renderer.domElement);
 const orbit = new (0, _orbitControls.OrbitControls)(camera, renderer.domElement);
-const axesHelpers = new _three.AxesHelper();
-scene.add(axesHelpers);
-const directionalLight = new _three.DirectionalLight({
-    color: 0x00000,
-    intensity: 0.6
-});
-directionalLight.castShadow = true;
-directionalLight.position.set(0, 20, 0);
+const gridhelper = new _three.GridHelper();
+scene.add(gridhelper);
+const ambientLight = new _three.AmbientLight("#fafcd7", 0.2);
+scene.add(ambientLight);
+const directionalLight = new _three.DirectionalLight("#fafcd7", 0.2);
 scene.add(directionalLight);
 const mousePos = new _three.Vector2();
 const intersectPt = new _three.Vector3();
 const planeNormal = new _three.Vector3();
 const plane = new _three.Plane();
 const raycaster = new _three.Raycaster();
-const spheres = [];
-const bodies = [];
-var doSphere = true;
-const planeGeo = new _three.PlaneGeometry(10, 10);
-const planeMat = new _three.MeshStandardMaterial({
-    color: 0x63d681,
-    side: _three.DoubleSide
-});
-const ground = new _three.Mesh(planeGeo, planeMat);
-ground.receiveShadow = true;
-scene.add(ground);
+const sphereMeshes = [];
+const sphereBodies = [];
 const planePMat = new _cannonEs.Material();
 const planeBody = new _cannonEs.Body({
     type: _cannonEs.Body.STATIC,
@@ -588,80 +574,50 @@ const planeBody = new _cannonEs.Body({
 });
 planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 world.addBody(planeBody);
-CreateBox(new (0, _cannonEs.Vec3)(5, 1.25, 0), new (0, _cannonEs.Vec3)(1, 2.5, 10));
-CreateBox(new (0, _cannonEs.Vec3)(-5, 1.25, 0), new (0, _cannonEs.Vec3)(1, 2.5, 10));
-CreateBox(new (0, _cannonEs.Vec3)(0, 1.25, 5), new (0, _cannonEs.Vec3)(10, 2.5, 1));
-CreateBox(new (0, _cannonEs.Vec3)(0, 1.25, -5), new (0, _cannonEs.Vec3)(10, 2.5, 1));
+CreatePlanet(new (0, _cannonEs.Vec3)(0, 0, 0), 8);
+CreatePlanet(new (0, _cannonEs.Vec3)(10, 0, 0), 1);
+CreatePlanet(new (0, _cannonEs.Vec3)(10, 10, 0), 1);
+CreatePlanet(new (0, _cannonEs.Vec3)(10, 0, 10), 1);
+CreatePlanet(new (0, _cannonEs.Vec3)(10, 0, -2), 1);
 timeStep = 1 / 60;
 function animate() {
     world.step(timeStep);
-    ground.position.copy(planeBody.position);
-    ground.quaternion.copy(planeBody.quaternion);
-    for(let i = 0; i < bodies.length; i++){
-        spheres[i].position.copy(bodies[i].position);
-        spheres[i].quaternion.copy(bodies[i].quaternion);
+    for(let i = 0; i < sphereBodies.length; i++){
+        sphereMeshes[i].position.copy(sphereBodies[i].position);
+        sphereMeshes[i].quaternion.copy(sphereBodies[i].quaternion);
+        for(let x = 0; x < sphereBodies.length; x++)if (x != i) {
+            var force = sphereBodies[i].mass * sphereBodies[x].mass / sphereMeshes[i].position.distanceTo(sphereMeshes[x].position); //Newton's law of universal gravitation
+            var forceVec = new (0, _cannonEs.Vec3)(sphereBodies[i].position.x - sphereBodies[x].position.x, sphereBodies[i].position.y - sphereBodies[x].position.y, sphereBodies[i].position.z - sphereBodies[x].position.z);
+            forceVec.normalize();
+            forceVec.x *= -force;
+            forceVec.y *= -force;
+            forceVec.z *= -force;
+            //console.log(forceVec);
+            sphereBodies[i].applyForce(forceVec);
+        }
     }
     renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(animate);
-window.addEventListener("click", function(e) {
-    var objGeo;
-    var objMat;
-    var obj;
-    const objPMat = new _cannonEs.Material();
-    var objBody;
-    if (doSphere) {
-        objGeo = new _three.SphereGeometry(.25, 30, 30);
-        objMat = new _three.MeshStandardMaterial({
-            color: 0xFFFFFF * Math.random()
-        });
-        obj = new _three.Mesh(objGeo, objMat);
-        objBody = new _cannonEs.Body({
-            material: objPMat,
-            shape: new _cannonEs.Sphere(.125),
-            mass: 3,
-            position: new _cannonEs.Vec3(intersectPt.x, intersectPt.y, intersectPt.z)
-        });
-    } else {
-        objGeo = new _three.BoxGeometry(.5, .5, .5);
-        objMat = new _three.MeshStandardMaterial({
-            color: 0xFFFFFF * Math.random()
-        });
-        obj = new _three.Mesh(objGeo, objMat);
-        objBody = new _cannonEs.Body({
-            material: objPMat,
-            shape: new _cannonEs.Box(new _cannonEs.Vec3(.25, .25, .25)),
-            mass: 3,
-            position: new _cannonEs.Vec3(intersectPt.x, intersectPt.y, intersectPt.z)
-        });
-    }
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    doSphere = !doSphere;
-    scene.add(obj);
-    obj.position.copy(intersectPt);
-    world.addBody(objBody);
-    const planeSphereContact = new _cannonEs.ContactMaterial(planePMat, objPMat, {
-        restitution: 0.9
-    });
-    world.addContactMaterial(planeSphereContact);
-    spheres.push(obj);
-    bodies.push(objBody);
-});
-function CreateBox(pos, size) {
-    const boxGeo = new _three.BoxGeometry(size.x, size.y, size.z);
-    const boxMat = new _three.MeshStandardMaterial({
+window.addEventListener("click", function(e) {});
+function CreatePlanet(pos, radius) {
+    const sphereGeo = new _three.SphereGeometry(radius);
+    const sphereMat = new _three.MeshStandardMaterial({
         color: 0xffffff * Math.random()
     });
-    const box = new _three.Mesh(boxGeo, boxMat);
-    box.position.set(pos.x, pos.y, pos.z);
+    const planet = new _three.Mesh(sphereGeo, sphereMat);
+    planet.position.set(pos.x, pos.y, pos.z);
     const body = new _cannonEs.Body({
-        type: _cannonEs.Body.STATIC,
-        shape: new _cannonEs.Box(new _cannonEs.Vec3(size.x / 2, size.y / 2, size.z / 2)),
+        type: _cannonEs.Body.DYNAMIC,
+        shape: new _cannonEs.Sphere(radius) / 2,
+        mass: radius * radius,
         position: new _cannonEs.Vec3(pos.x, pos.y, pos.z)
     });
-    scene.add(box);
+    scene.add(planet);
     world.addBody(body);
+    body.applyImpulse(new (0, _cannonEs.Vec3)(Math.random() * 8, Math.random() * 8, Math.random() * 8));
+    sphereMeshes.push(planet);
+    sphereBodies.push(body);
 }
 window.addEventListener("mousemove", function(e) {
     mousePos.x = e.clientX / this.window.innerWidth * 2 - 1;
@@ -678,11 +634,7 @@ window.addEventListener("resize", function() {
 });
 
 },{"three":"ktPTu","three/examples/jsm/controls/OrbitControls":"7mqRv","cannon-es":"HCu3b"}],"ktPTu":[function(require,module,exports) {
-/**
- * @license
- * Copyright 2010-2022 Three.js Authors
- * SPDX-License-Identifier: MIT
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "ACESFilmicToneMapping", ()=>ACESFilmicToneMapping);
 parcelHelpers.export(exports, "AddEquation", ()=>AddEquation);
@@ -1091,7 +1043,11 @@ parcelHelpers.export(exports, "ZeroSlopeEnding", ()=>ZeroSlopeEnding);
 parcelHelpers.export(exports, "ZeroStencilOp", ()=>ZeroStencilOp);
 parcelHelpers.export(exports, "_SRGBAFormat", ()=>_SRGBAFormat);
 parcelHelpers.export(exports, "sRGBEncoding", ()=>sRGBEncoding);
-const REVISION = "146";
+/**
+ * @license
+ * Copyright 2010-2022 Three.js Authors
+ * SPDX-License-Identifier: MIT
+ */ const REVISION = "146";
 const MOUSE = {
     LEFT: 0,
     MIDDLE: 1,
@@ -9733,7 +9689,7 @@ const ShaderLib = {
                 opacity: {
                     value: 1.0
                 }
-            }
+            }, 
         ]),
         vertexShader: ShaderChunk.shadow_vert,
         fragmentShader: ShaderChunk.shadow_frag
@@ -17840,9 +17796,7 @@ function WebGLRenderer(parameters = {}) {
                     return;
                 }
                 const halfFloatSupportedByExt = textureType === HalfFloatType && (extensions.has("EXT_color_buffer_half_float") || capabilities.isWebGL2 && extensions.has("EXT_color_buffer_float"));
-                if (textureType !== UnsignedByteType && utils.convert(textureType) !== _gl.getParameter(35738) && // Edge and Chrome Mac < 52 (#9513)
-                !(textureType === FloatType && (capabilities.isWebGL2 || extensions.has("OES_texture_float") || extensions.has("WEBGL_color_buffer_float"))) && // Chrome Mac >= 52 and Firefox
-                !halfFloatSupportedByExt) {
+                if (textureType !== UnsignedByteType && utils.convert(textureType) !== _gl.getParameter(35738) && !(textureType === FloatType && (capabilities.isWebGL2 || extensions.has("OES_texture_float") || extensions.has("WEBGL_color_buffer_float"))) && !halfFloatSupportedByExt) {
                     console.error("THREE.WebGLRenderer.readRenderTargetPixels: renderTarget is not in UnsignedByteType or implementation defined type.");
                     return;
                 }
@@ -21353,10 +21307,7 @@ function pointInTriangle(ax, ay, bx, by, cx, cy, px, py) {
 }
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 function isValidDiagonal(a, b) {
-    return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && // dones't intersect other edges
-    (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
-    (area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
-    equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
+    return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && (area(a.prev, a, b.prev) || area(a, b.prev, b)) || equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
 }
 // signed area of a triangle
 function area(p, q, r) {
@@ -23269,8 +23220,7 @@ function arraySlice(array, from, to) {
 }
 // converts an array to a specific type
 function convertArray(array, type, forceClone) {
-    if (!array || // let 'undefined' and 'null' pass
-    !forceClone && array.constructor === type) return array;
+    if (!array || !forceClone && array.constructor === type) return array;
     if (typeof type.BYTES_PER_ELEMENT === "number") return new type(array); // create typed array
     return Array.prototype.slice.call(array); // create Array
 }
@@ -27079,32 +27029,32 @@ PropertyBinding.prototype.GetterByBindingType = [
     PropertyBinding.prototype._getValue_direct,
     PropertyBinding.prototype._getValue_array,
     PropertyBinding.prototype._getValue_arrayElement,
-    PropertyBinding.prototype._getValue_toArray
+    PropertyBinding.prototype._getValue_toArray, 
 ];
 PropertyBinding.prototype.SetterByBindingTypeAndVersioning = [
     [
         // Direct
         PropertyBinding.prototype._setValue_direct,
         PropertyBinding.prototype._setValue_direct_setNeedsUpdate,
-        PropertyBinding.prototype._setValue_direct_setMatrixWorldNeedsUpdate
+        PropertyBinding.prototype._setValue_direct_setMatrixWorldNeedsUpdate, 
     ],
     [
         // EntireArray
         PropertyBinding.prototype._setValue_array,
         PropertyBinding.prototype._setValue_array_setNeedsUpdate,
-        PropertyBinding.prototype._setValue_array_setMatrixWorldNeedsUpdate
+        PropertyBinding.prototype._setValue_array_setMatrixWorldNeedsUpdate, 
     ],
     [
         // ArrayElement
         PropertyBinding.prototype._setValue_arrayElement,
         PropertyBinding.prototype._setValue_arrayElement_setNeedsUpdate,
-        PropertyBinding.prototype._setValue_arrayElement_setMatrixWorldNeedsUpdate
+        PropertyBinding.prototype._setValue_arrayElement_setMatrixWorldNeedsUpdate, 
     ],
     [
         // HasToFromArray
         PropertyBinding.prototype._setValue_fromArray,
         PropertyBinding.prototype._setValue_fromArray_setNeedsUpdate,
-        PropertyBinding.prototype._setValue_fromArray_setMatrixWorldNeedsUpdate
+        PropertyBinding.prototype._setValue_fromArray_setMatrixWorldNeedsUpdate, 
     ]
 ];
 /**
@@ -27720,7 +27670,7 @@ class AnimationMixer extends EventDispatcher {
             // increment reference counts / sort out state
             for(let i = 0, n = bindings.length; i !== n; ++i){
                 const binding = bindings[i];
-                if (binding.useCount++ === 0) {
+                if ((binding.useCount++) === 0) {
                     this._lendBinding(binding);
                     binding.saveOriginalState();
                 }
@@ -29852,7 +29802,7 @@ if (typeof window !== "undefined") {
     else window.__THREE__ = REVISION;
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"liiLQ"}],"liiLQ":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"5K4W2"}],"5K4W2":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -30566,10 +30516,8 @@ class MapControls extends OrbitControls {
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"liiLQ"}],"HCu3b":[function(require,module,exports) {
-/**
- * Records what objects are colliding with each other
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"5K4W2"}],"HCu3b":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "AABB", ()=>AABB);
 parcelHelpers.export(exports, "ArrayCollisionMatrix", ()=>ArrayCollisionMatrix);
@@ -30626,7 +30574,9 @@ parcelHelpers.export(exports, "Vec3", ()=>Vec3);
 parcelHelpers.export(exports, "Vec3Pool", ()=>Vec3Pool);
 parcelHelpers.export(exports, "WheelInfo", ()=>WheelInfo);
 parcelHelpers.export(exports, "World", ()=>World);
-class ObjectCollisionMatrix {
+/**
+ * Records what objects are colliding with each other
+ */ class ObjectCollisionMatrix {
     /**
    * The matrix storage.
    */ /**
@@ -39605,6 +39555,6 @@ const endShapeContactEvent = {
     shapeB: null
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"liiLQ"}]},["fK4lP","dV6cC"], "dV6cC", "parcelRequire225a")
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"5K4W2"}]},["kQAxj","dV6cC"], "dV6cC", "parcelRequire225a")
 
 //# sourceMappingURL=index.e82f28a0.js.map
